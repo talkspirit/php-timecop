@@ -8,39 +8,20 @@ on:
     types: [created]
 jobs:
   build:
-    name: PHP ${{ matrix.php-version }} (ZTS ${{ matrix.php-zts }})
-    runs-on: ubuntu-22.04
+    name: PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         php-version:
-          - '5.6'
-          - '7.0'
-          - '7.1'
-          - '7.2'
-          - '7.3'
-          - '7.4'
-          - '8.0'
-          - '8.1'
-          - '8.2'
-          - '8.3'
-        php-zts:
-          - nts
-          - ts
-        exclude:
-          - php-version: '5.6'
-            php-zts: 'ts'
-          - php-version: '8.3'
-            php-zts: 'ts'
+          - '8.4'
     steps:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
           coverage: none
-        env:
-          phpts: ${{ matrix.php-zts }}
       - name: PHP version
         run: |
           php --version
@@ -55,42 +36,4 @@ jobs:
           ./configure
           make
           make test REPORT_EXIT_STATUS=1 NO_INTERACTION=1 TESTS="--show-all"
-      - name: Save artifact (NTS)
-        uses: actions/upload-artifact@v4
-        if: matrix.php-zts == 'nts'
-        with:
-          name: timecop_${{ env.PHP_API }}.so
-          path: modules/timecop.so
-          if-no-files-found: error
-      - name: Save artifact (TS)
-        uses: actions/upload-artifact@v4
-        if: matrix.php-zts == 'ts'
-        with:
-          name: timecop_${{ env.PHP_API }}_zts.so
-          path: modules/timecop.so
-          if-no-files-found: error
-  package:
-    name: Package for download
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    needs: build
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-      - name: Combine artifacts
-        run: |
-          mkdir -p output
 
-          for dir in timecop_*.so; do
-            # Move/rename from timecop.so to timecop_PHPAPI.so
-            mv "${dir}/timecop.so" "output/${dir}"
-          done
-
-          cd output
-          sha256sum *.so > SHA256SUM
-      - name: Save artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: timecop
-          path: output/*
-          if-no-files-found: error
